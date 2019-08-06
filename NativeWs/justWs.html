@@ -1,0 +1,18 @@
+<script>
+    let ws = new WebSocket('ws://localhost:8000');  // not using http protocol
+    console.log(ws);
+
+    ws.onopen = (event) => {
+        ws.send('Hi Server, I am so exited I am connected, it is like comming home after fighting war!')
+    }
+
+    /**
+     * When we are conencted!
+     * anyone sends a message this callback is called.
+     * All the things are in real time using TCP
+     * onmessage - An event to be called when a message is received from the server.
+     */
+    ws.onmessage = (event) => {
+        console.log(event)
+    } 
+</script>
