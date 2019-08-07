@@ -1,6 +1,11 @@
+const username = prompt("What is your username?")
 // Join the main namespace
 // Client connect her to the main namespace
-const socket = io("http://localhost:9000"); 
+const socket = io("http://localhost:9000", {
+  query: {
+    username: username
+  }
+}); 
 
 let nsSocket = "";
 // Listen for nsList, which is a list of all the namespaces

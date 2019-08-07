@@ -16,6 +16,7 @@ const io = socketio(expressServer);
  */
 io.on("connection", socket => {
   // Build an array to send back with the img and endpoint for each NS
+  console.log(socket.handshake)
   let nsData = namespaces.map(ns => {
     return {
       img: ns.img,
@@ -32,12 +33,13 @@ io.on("connection", socket => {
 });
 
 /**
- * Loopin through the namespaces for adding event listener to the endpoint 
- * just to have a way to use them. 
+ * Loopin through the namespaces for adding event listener to the endpoint
+ * just to have a way to use them.
  */
 namespaces.forEach(namespace => {
   io.of(namespace.endpoint).on("connection", nsSocket => {
-    console.log(`${nsSocket.id} has joined ${namespace.endpoint}`);
+    // console.log(`${nsSocket.id} has joined ${namespace.endpoint}`);
+    const username = nsSocket.handshake.query.username;
     // A socket has connected to one of our chatgroup namespace.
     // send that ns group info back
     nsSocket.emit("nsRoomLoad", namespace.rooms);
@@ -47,8 +49,9 @@ namespaces.forEach(namespace => {
     nsSocket.on("joinRoom", (roomToJoin /*, numberOfUsersCallback */) => {
       // Deal with history.. once we have it
       // We joined the socket to the room.
-      const roomTitle = Object.keys(nsSocket.rooms)[1];
-      nsSocket.leave(roomTitle);
+      const roomToLeave = Object.keys(nsSocket.rooms)[1];
+      nsSocket.leave(roomToLeave);
+      updateUsersInRoom(namespace,roomToLeave)
       nsSocket.join(roomToJoin);
       // we send the no of clients connected update to that particular socket.
       // Not needed since we are sending to all the rooms.
@@ -65,18 +68,7 @@ namespaces.forEach(namespace => {
       // We have full detail of the room that is joined by filtering
       // Sending history update.
       nsSocket.emit("historyCatchUp", nsRoom.history);
-      // Send back the number of users in this room to all sockets connected to this room
-      // So that all the window will update on new user joining.
-      // we are sending no of clients connected update to whole room here
-      // after sending history update.
-      io.of(namespace.endpoint)
-        .in(roomToJoin)
-        .clients((error, clients) => {
-          console.log(`There are ${clients.length} in this room`);
-          io.of(namespace.endpoint)
-            .in(roomToJoin)
-            .emit("updateMembers", clients.length);
-        });
+      updateUsersInRoom(namespace, roomToJoin);
     });
 
     nsSocket.on("newMessageToServer", msg => {
@@ -84,7 +76,7 @@ namespaces.forEach(namespace => {
       const fullMsg = {
         text: msg.text,
         time: Date.now(),
-        username: "rbunch",
+        username: username,
         avatar: "https://via.placeholder.com/30"
       };
       // Send this message to all the sockets that are in the room, that this socket is in.
@@ -108,7 +100,7 @@ namespaces.forEach(namespace => {
       /**
        * Filter returns array and find returns object.
        */
-      console.log(nsSocket.rooms)
+      console.log(nsSocket.rooms);
       const nsRoom = namespace.rooms.find(room => {
         // Looked into this namespaces room list
         return room.roomTitle === roomTitle;
@@ -121,6 +113,21 @@ namespaces.forEach(namespace => {
     });
   });
 });
+
+function updateUsersInRoom(namespace, roomToJoin) {
+  // Send back the number of users in this room to all sockets connected to this room
+  // So that all the window will update on new user joining.
+  // we are sending no of clients connected update to whole room here
+  // after sending history update.
+  io.of(namespace.endpoint)
+    .in(roomToJoin)
+    .clients((error, clients) => {
+      console.log(`There are ${clients.length} in this room`);
+      io.of(namespace.endpoint)
+        .in(roomToJoin)
+        .emit("updateMembers", clients.length);
+    });
+}
 
 // aNamespace.to(aRoom) : comes to everybody including the socket whose sending
 // socket.to(aRoom) : comes to everybody excepts whose sending
